@@ -113,10 +113,49 @@ h3 {
     transition: all 0.2s ease;
     background-color: #121213;
     color: #ffffff;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .cell:hover {
     border-color: #565758;
+}
+
+.cell:focus {
+    outline: none;
+    border-color: #6aaa64;
+    box-shadow: 0 0 0 1px #6aaa64;
+}
+
+/* Touch feedback for mobile */
+.cell:active {
+    transform: scale(0.95);
+    background-color: #2a2a2b;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) and (pointer: coarse) {
+    .cell {
+        width: 55px;
+        height: 55px;
+        font-size: 1.8rem;
+        /* Larger touch target */
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .grid {
+        gap: 4px;
+    }
+
+    /* Better touch feedback */
+    .cell:active {
+        transform: scale(0.9);
+        background-color: #3a3a3c;
+        border-color: #6aaa64;
+    }
 }
 
 .cell.empty {

@@ -9,6 +9,7 @@ class WordleSolver {
     this.createGrid();
     this.bindEvents();
     this.initializeGrid();
+    console.log("Wordle Solver initialized. Mobile mode:", this.isMobile());
   }
 
   createGrid() {
@@ -28,8 +29,20 @@ class WordleSolver {
         cell.addEventListener("keydown", (e) =>
           this.handleCellKeydown(e, row, col)
         );
+        // Add input event for mobile browsers
+        cell.addEventListener("input", (e) =>
+          this.handleCellInput(e, row, col)
+        );
+        // Add paste event handler
+        cell.addEventListener("paste", (e) =>
+          this.handleCellPaste(e, row, col)
+        );
         cell.contentEditable = true;
         cell.setAttribute("tabindex", "0");
+        cell.setAttribute("inputmode", "text");
+        cell.setAttribute("autocomplete", "off");
+        cell.setAttribute("autocorrect", "off");
+        cell.setAttribute("spellcheck", "false");
 
         rowElement.appendChild(cell);
         gridRow.push({ letter: "", status: "" });
@@ -109,7 +122,7 @@ class WordleSolver {
             status: "",
           };
           this.updateCellAppearance(prevPosition.row, prevPosition.col);
-          prevCell.focus();
+          this.focusCell(prevCell);
         }
       }
       return;
@@ -121,12 +134,16 @@ class WordleSolver {
       return;
     }
 
-    // Arrow key navigation
+    // Arrow key navigation with mobile support
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       const prevPosition = this.getPreviousCell(row, col);
       if (prevPosition) {
-        this.getCellElement(prevPosition.row, prevPosition.col).focus();
+        const targetCell = this.getCellElement(
+          prevPosition.row,
+          prevPosition.col
+        );
+        this.focusCell(targetCell);
       }
       return;
     }
@@ -135,7 +152,11 @@ class WordleSolver {
       e.preventDefault();
       const nextPosition = this.getNextCell(row, col);
       if (nextPosition) {
-        this.getCellElement(nextPosition.row, nextPosition.col).focus();
+        const targetCell = this.getCellElement(
+          nextPosition.row,
+          nextPosition.col
+        );
+        this.focusCell(targetCell);
       }
       return;
     }
@@ -143,7 +164,8 @@ class WordleSolver {
     if (e.key === "ArrowUp") {
       e.preventDefault();
       if (row > 0) {
-        this.getCellElement(row - 1, col).focus();
+        const targetCell = this.getCellElement(row - 1, col);
+        this.focusCell(targetCell);
       }
       return;
     }
@@ -151,7 +173,8 @@ class WordleSolver {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (row < 5) {
-        this.getCellElement(row + 1, col).focus();
+        const targetCell = this.getCellElement(row + 1, col);
+        this.focusCell(targetCell);
       }
       return;
     }
@@ -167,10 +190,14 @@ class WordleSolver {
       }
       this.updateCellAppearance(row, col);
 
-      // Move to next cell
+      // Move to next cell with mobile-friendly focus
       const nextPosition = this.getNextCell(row, col);
       if (nextPosition) {
-        this.getCellElement(nextPosition.row, nextPosition.col).focus();
+        const nextCell = this.getCellElement(
+          nextPosition.row,
+          nextPosition.col
+        );
+        this.focusCell(nextCell);
       }
     }
   }
@@ -203,6 +230,116 @@ class WordleSolver {
     }
     // If at the very end, return null
     return null;
+  }
+
+  handleCellInput(e, row, col) {
+    // This handles input events, crucial for mobile browsers
+    console.log("Mobile input event triggered:", {
+      row,
+      col,
+      isMobile: this.isMobile(),
+    });
+    const cell = this.getCellElement(row, col);
+    const content = cell.textContent || cell.innerText || "";
+
+    // Extract only the last letter entered (in case multiple chars were entered)
+    const letters = content.replace(/[^a-zA-Z]/g, "").toUpperCase();
+    const letter = letters.slice(-1); // Get the last letter
+
+    if (letter && letter.match(/[A-Z]/)) {
+      // Clear the cell and set just the single letter
+      cell.textContent = letter;
+      this.grid[row][col].letter = letter;
+      if (!this.grid[row][col].status) {
+        this.grid[row][col].status = "absent";
+      }
+      this.updateCellAppearance(row, col);
+
+      // Move to next cell
+      const nextPosition = this.getNextCell(row, col);
+      if (nextPosition) {
+        const nextCell = this.getCellElement(
+          nextPosition.row,
+          nextPosition.col
+        );
+        this.focusCell(nextCell);
+      }
+    } else if (!letter) {
+      // If no valid letter, clear the cell
+      cell.textContent = "";
+      this.grid[row][col] = { letter: "", status: "" };
+      this.updateCellAppearance(row, col);
+    } else if (letters.length > 1) {
+      // If multiple letters, just take the first one
+      cell.textContent = letters.charAt(0);
+      this.grid[row][col].letter = letters.charAt(0);
+      if (!this.grid[row][col].status) {
+        this.grid[row][col].status = "absent";
+      }
+      this.updateCellAppearance(row, col);
+    }
+  }
+
+  handleCellPaste(e, row, col) {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData("text");
+    const letters = paste.replace(/[^a-zA-Z]/g, "").toUpperCase();
+
+    if (letters.length > 0) {
+      // Paste letters across multiple cells
+      let currentRow = row;
+      let currentCol = col;
+
+      for (let i = 0; i < letters.length && currentRow < 6; i++) {
+        if (currentCol >= 5) {
+          currentRow++;
+          currentCol = 0;
+        }
+        if (currentRow >= 6) break;
+
+        const cell = this.getCellElement(currentRow, currentCol);
+        cell.textContent = letters[i];
+        this.grid[currentRow][currentCol].letter = letters[i];
+        if (!this.grid[currentRow][currentCol].status) {
+          this.grid[currentRow][currentCol].status = "absent";
+        }
+        this.updateCellAppearance(currentRow, currentCol);
+
+        currentCol++;
+      }
+
+      // Focus the last cell that was filled
+      if (currentCol > 0) {
+        currentCol--;
+      } else if (currentRow > row) {
+        currentRow--;
+        currentCol = 4;
+      }
+      const lastCell = this.getCellElement(currentRow, currentCol);
+      this.focusCell(lastCell);
+    }
+  }
+
+  isMobile() {
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      ) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 2)
+    );
+  }
+
+  focusCell(cell) {
+    // Mobile-friendly focus method
+    if (this.isMobile()) {
+      console.log("Using mobile focus with click trigger");
+      setTimeout(() => {
+        cell.focus();
+        cell.click();
+      }, 50);
+    } else {
+      cell.focus();
+    }
   }
 
   updateCellAppearance(row, col) {
@@ -440,7 +577,28 @@ class WordleSolver {
       invalid_letters: invalidLetters,
       hard_mode: document.getElementById("hard-mode").checked,
       exclude_known_letters: document.getElementById("exclude-known").checked,
+      isMobile: this.isMobile(),
     };
+  }
+
+  // Debug method to show grid state in console
+  debugGrid() {
+    console.log("=== GRID DEBUG ===");
+    console.log("Mobile mode:", this.isMobile());
+    console.log("Grid state:", this.getGridState());
+
+    // Show visual representation
+    for (let row = 0; row < 6; row++) {
+      let rowStr = `Row ${row}: `;
+      for (let col = 0; col < 5; col++) {
+        const cell = this.grid[row][col];
+        const letter = cell.letter || "_";
+        const status = cell.status ? cell.status[0].toUpperCase() : "E";
+        rowStr += `${letter}(${status}) `;
+      }
+      console.log(rowStr);
+    }
+    console.log("=================");
   }
 }
 
@@ -473,4 +631,7 @@ console.log(
 );
 console.log(
   "Keyboard shortcuts: Arrow keys to navigate, Backspace to delete & move back, Space/Enter to cycle colors, Ctrl+Enter to solve, Ctrl+Shift+Backspace to clear all"
+);
+console.log(
+  "Debug commands: window.wordleSolver.getGridState(), window.wordleSolver.debugGrid()"
 );
