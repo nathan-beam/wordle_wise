@@ -176,11 +176,6 @@ def solve_wordle():
                 'answer_found': True,
                 'message': f"Only one possible word remains: {hard_mode_words[0].upper()}"
             })
-        elif len(hard_mode_words) > 0 and len(hard_mode_words) <= len(valid_words) * 2:
-            # Use hard mode suggestions if they're reasonable
-            suggestions = get_best_guesses(
-                hard_mode_words, valid_letters, correct_letters)
-            suggestion_source = "hard_mode"
         else:
             # Fall back to user's original settings
             suggestions = get_best_guesses(
